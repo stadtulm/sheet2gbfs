@@ -1,0 +1,14 @@
+{
+  "name": "sheet2gbfs",
+  "version": "1.0.0",
+  "description": "GoogleSheet to GBFS",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^2.6.0"
+  }
+}
