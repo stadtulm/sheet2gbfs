@@ -7,6 +7,7 @@ GOOGLE_SHEETS_KEY =
 GOOGLE_SHEETS_URL = `https://spreadsheets.google.com/feeds/worksheets/${GOOGLE_SHEETS_KEY}/public/full?alt=json`;
 
 const fs = require("fs");
+const path = require("path");
 const fetch = require("node-fetch");
 
 let station_status = {
@@ -33,7 +34,7 @@ function fetchSheets() {
     });
 }
 
-function writeIndex(sheets) {
+function buildIndex(sheets) {
   let gbfs_json = {
     last_updated: Math.floor(new Date() / 1000),
     ttl: 0,
@@ -58,7 +59,7 @@ function writeIndex(sheets) {
       url: GBFS_ENDPOINT + "/station_status.json"
     });
   }
-  fs.writeFileSync("gbfs/gbfs.json", JSON.stringify(gbfs_json));
+  return gbfs_json;
 }
 
 function loadSystemInfo(url) {
@@ -66,7 +67,7 @@ function loadSystemInfo(url) {
     .then(res => res.json())
     .then(json => {
       let data = json.feed.entry[0];
-      let systemInformation = {
+      return {
         last_updated: Math.floor(new Date() / 1000),
         ttl: 0,
         data: {
@@ -78,10 +79,6 @@ function loadSystemInfo(url) {
           license_url: data["gsx$licenseurl"]["$t"]
         }
       };
-      fs.writeFileSync(
-        "gbfs/system_information.json",
-        JSON.stringify(systemInformation)
-      );
     });
 }
 
@@ -116,10 +113,7 @@ function loadStationInfo(url) {
         };
         station_status.stations.push(gbfsStationStatus);
       });
-      fs.writeFileSync(
-        "gbfs/station_information.json",
-        JSON.stringify(station_information)
-      );
+      return station_information;
     });
 }
 
@@ -138,35 +132,59 @@ function loadBikeInfo(url) {
           });
         }
       });
-      fs.writeFileSync(
-        "gbfs/station_status.json",
-        JSON.stringify(station_status)
-      );
+      return station_status;
     });
 }
 
 (async function() {
+  var args = process.argv.slice(2);
+  var DIR = "gbfs";
+  if (args.length == 1) {
+    if (fs.existsSync(args[0]) && fs.lstatSync(args[0]).isDirectory()) {
+      DIR = args[0];
+    } else {
+      console.warn(args[0], "is not a directory");
+    }
+  }
+
   var sheets = await fetchSheets();
-  await writeIndex(sheets);
+
+  var index = buildIndex(sheets);
+  fs.writeFileSync(path.join(DIR, "gbfs.json"), JSON.stringify(index));
+
   if (typeof sheets["system"] === "undefined") {
     console.warn(
       "system sheet is missing. not going to write system_information.json"
     );
   } else {
-    await loadSystemInfo(sheets["system"]);
+    var system = await loadSystemInfo(sheets["system"]);
+    fs.writeFileSync(
+      path.join(DIR, "system_information.json"),
+      JSON.stringify(system)
+    );
   }
+
   if (typeof sheets["stations"] === "undefined") {
     console.warn(
       "station sheet is missing. not going to write station_information.json"
     );
   } else {
-    await loadStationInfo(sheets["stations"]);
+    var station = await loadStationInfo(sheets["stations"]);
+    fs.writeFileSync(
+      path.join(DIR, "station_information.json"),
+      JSON.stringify(station)
+    );
   }
+
   if (typeof sheets["bikes"] === "undefined") {
     console.warn(
       "bike sheet is missing. not going to write station_status.json"
     );
   } else {
-    await loadBikeInfo(sheets["bikes"]);
+    var bikes = await loadBikeInfo(sheets["bikes"]);
+    fs.writeFileSync(
+      path.join(DIR, "station_status.json"),
+      JSON.stringify(bikes)
+    );
   }
 })();
