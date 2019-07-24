@@ -55,7 +55,7 @@ function loadSystemInfo() {
 					"name": data["gsx$name"]["$t"],
 					"url": data["gsx$url"]["$t"],
 					"timezone": data["gsx$timezone"]["$t"],
-					"license_url": data["gsx$license_url"]["$t"],
+					"license_url": data["gsx$licenseurl"]["$t"],
 				}
 			}
 			fs.writeFileSync('gbfs/system_information.json', JSON.stringify(systemInformation));
