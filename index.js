@@ -1,60 +1,66 @@
-GBFS_ENDPOINT = "http://mylittleendpoint/"
-SYSTEM_ID = "radforschung_camp"
-SYSTEM_NAME = "Campy Mc Campbike"
-SYSTEM_WEB_URL = "https://radforschung.org/"
-SYSTEM_TIMEZONE = "Europe/Berlin"
+GBFS_ENDPOINT = process.env.GBFS_ENDPOINT || "http://gbfs.example.invalid"
+LANGUAGE = "de"
 
-GOOGLE_SHEETS_BIKE_URL = "https://spreadsheets.google.com/feeds/list/1OFBnUAaoh3shRO1ZArFxYpad-Xml7dyXgFfrchq0-Uo/2/public/full?alt=json"
-GOOGLE_SHEETS_STATION_URL = "https://spreadsheets.google.com/feeds/list/1OFBnUAaoh3shRO1ZArFxYpad-Xml7dyXgFfrchq0-Uo/1/public/full?alt=json"
+GOOGLE_SHEETS_KEY = process.env.GOOGLE_SHEETS_KEY || "1OFBnUAaoh3shRO1ZArFxYpad-Xml7dyXgFfrchq0-Uo"
+GOOGLE_SHEETS_BIKE_URL = `https://spreadsheets.google.com/feeds/list/${GOOGLE_SHEETS_KEY}/2/public/full?alt=json`
+GOOGLE_SHEETS_STATION_URL = `https://spreadsheets.google.com/feeds/list/${GOOGLE_SHEETS_KEY}/1/public/full?alt=json`
+GOOGLE_SHEETS_SYSTEM_URL = `https://spreadsheets.google.com/feeds/list/${GOOGLE_SHEETS_KEY}/3/public/full?alt=json`
 
 const fs = require("fs")
 const fetch = require('node-fetch');
 
-writeSystemInfo()
+writeIndex()
+loadSystemInfo()
 loadStationInfo()
 
 let station_status = {
 	stations: []
 }
 
-function writeSystemInfo(){
+function writeIndex(){
 	let gbfs_json = {
 		"last_updated": Math.floor(new Date() / 1000),
 		"ttl": 0,
-		"data": {
-			"de": {
-				"feeds": [
-					{
-						"name": "system_information",
-						"url": GBFS_ENDPOINT + "system_information.json"
-					},
-					{
-						"name": "station_information",
-						"url": GBFS_ENDPOINT + "station_information.json"
-					},
-					{
-						"name": "station_status",
-						"url": GBFS_ENDPOINT + "station_status.json"
-					}
-				]
+		"data": {}
+	}
+	gbfs_json['data'][LANGUAGE] = {
+		"feeds": [
+			{
+				"name": "system_information",
+				"url": GBFS_ENDPOINT + "/system_information.json"
+			},
+			{
+				"name": "station_information",
+				"url": GBFS_ENDPOINT + "/station_information.json"
+			},
+			{
+				"name": "station_status",
+				"url": GBFS_ENDPOINT + "/station_status.json"
 			}
-		}
+		]
 	}
 	fs.writeFileSync('gbfs/gbfs.json', JSON.stringify(gbfs_json));
+}
 
-	let systemInformation = {
-		"last_updated": Math.floor(new Date() / 1000),
-		"ttl": 0,
-		"data": {
-			"system_id": SYSTEM_ID,
-			"language": "de",
-			"name": SYSTEM_NAME,
-			"url": SYSTEM_WEB_URL,
-			"timezone": SYSTEM_TIMEZONE,
-			"license_url": "http://www.wtfpl.net/txt/copying"
-		}
-	}
-	fs.writeFileSync('gbfs/system_information.json', JSON.stringify(systemInformation));
+function loadSystemInfo() {
+	fetch(GOOGLE_SHEETS_SYSTEM_URL).then((res)=>{
+		res.json().then(json=>{
+			let data = json.feed.entry[0];
+			let systemInformation = {
+				"last_updated": Math.floor(new Date() / 1000),
+				"ttl": 0,
+				"data": {
+					"system_id": data["gsx$id"]["$t"],
+					"language": LANGUAGE,
+					"name": data["gsx$name"]["$t"],
+					"url": data["gsx$url"]["$t"],
+					"timezone": data["gsx$timezone"]["$t"],
+					"license_url": data["gsx$license_url"]["$t"],
+				}
+			}
+			fs.writeFileSync('gbfs/system_information.json', JSON.stringify(systemInformation));
+		})
+	})
 }
 
 function loadStationInfo() {
